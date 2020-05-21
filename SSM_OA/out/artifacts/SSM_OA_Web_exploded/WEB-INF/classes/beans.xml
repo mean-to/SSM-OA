@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+                        http://www.springframework.org/schema/beans/spring-beans.xsd
+                        http://www.springframework.org/schema/context
+                        http://www.springframework.org/schema/context/spring-context.xsd
+                        http://www.springframework.org/schema/aop
+                        http://www.springframework.org/schema/aop/spring-aop.xsd
+                        http://www.springframework.org/schema/tx
+                        http://www.springframework.org/schema/tx/spring-tx.xsd
+                        "
+                        >
+<!-- 注解扫描 -->         
+<context:component-scan base-package="com.ujiuy">
+<!-- 去除controller层注解扫描 -->
+<context:exclude-filter type="annotation" expression="org.springframework.stereotype.Controller"/>
+</context:component-scan>
+
+
+<!--第一步： 加载数据,数据源 -->
+
+    <context:property-placeholder location="classpath:db.properties"/>
+ <bean id="c3p" class="com.alibaba.druid.pool.DruidDataSource">
+        <property name="driverClassName" value="${driver}"></property>
+        <property name="url" value="${url}"></property>
+        <property name="username" value="${user}"></property>
+        <property name="password" value="${password}" ></property>
+
+    </bean>
+
+
+<!-- 2.完成SqlSessionFactory的实例化 -->
+  <bean id="sf" class="org.mybatis.spring.SqlSessionFactoryBean">
+      <!-- 依赖mybatis的全局配置文件 -->
+      <property name="configLocation" value="classpath:MybatisConfig.xml"></property>
+      <property name="dataSource" ref="c3p"></property>
+      <property name="mapperLocations" value="classpath:com/ujiuy/*/dao/*.xml"></property>
+    </bean>
+<!--第三步 mapper实例化-->
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+        <property name="basePackage" value="com.ujiuy.*.dao"></property>
+    </bean>
+
+	
+	<!-- 第四部步：代理类（含有事务控制的类） -->
+	<bean id="tx" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+	<property name="dataSource" ref="c3p"></property>
+	</bean>  
+	<!-- 通知 -->
+    <tx:advice id="myadvice" transaction-manager="tx">
+        <tx:attributes>
+            <!-- 传播行为 -->
+            <tx:method name="save*" propagation="REQUIRED" />
+            <tx:method name="insert*" propagation="REQUIRED" />
+            <tx:method name="delete*" propagation="REQUIRED" />
+            <tx:method name="update*" propagation="REQUIRED" />
+            <tx:method name="find*" propagation="SUPPORTS" read-only="true" />
+            <tx:method name="get*" propagation="SUPPORTS" read-only="true" />
+        </tx:attributes>
+    </tx:advice>
+	<aop:config>
+	 <aop:pointcut expression="execution(* com.ujiuy.*.service.*.*(..))" id="pid"/>
+	 <aop:advisor advice-ref="myadvice" pointcut-ref="pid"/>
+	 </aop:config>
+	  
+</beans>
